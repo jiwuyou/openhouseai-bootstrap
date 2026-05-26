@@ -26,3 +26,10 @@ check -> prepare -> ubuntu -> ubuntu-packages -> opencode -> codex -> claude-cod
 This repository intentionally does not install OpenHouse runtime components,
 SmallPhone, service-manager, cc-connect, cc-proxy, guide sites, or docs sites.
 
+## Maintenance Manifest
+
+The Android app can load the online maintenance manifest from:
+
+```text
+https://raw.githubusercontent.com/jiwuyou/openhouseai-bootstrap/main/openhouseai-manifest.json
+```
