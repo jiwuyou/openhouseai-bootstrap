@@ -69,13 +69,13 @@
     {
       "id": "termux_packages",
       "title": "下载 Termux 基础包",
-      "description": "pkg 安装 proot-distro、curl、openssl、ca-certificates、git。",
+      "description": "pkg 安装 proot-distro、curl、openssl、ca-certificates。",
       "action": { "type": "bootstrap", "args": ["termux-packages"] }
     },
     {
       "id": "install_ubuntu",
       "title": "下载 Ubuntu rootfs",
-      "description": "proot-distro install ubuntu，并注入 Ubuntu 侧环境探测命令。",
+      "description": "测速并选择 Ubuntu rootfs 镜像源，再注入 Ubuntu 侧环境探测命令。",
       "action": { "type": "bootstrap", "args": ["ubuntu"] }
     },
     {

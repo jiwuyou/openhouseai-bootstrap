@@ -19,13 +19,80 @@ run_logged() {
   "$@"
 }
 
+configure_termux_main_repo() {
+  local sources_file="${PREFIX:-/data/data/com.termux/files/usr}/etc/apt/sources.list"
+  local repo_url="${OPENHOUSEAI_TERMUX_MAIN_REPO:-}"
+
+  [ -n "${PREFIX:-}" ] || return 0
+  [ -d "$(dirname "$sources_file")" ] || return 0
+
+  if [ -z "$repo_url" ]; then
+    repo_url="$(select_fastest_termux_main_repo)"
+  else
+    log "使用指定 Termux main 镜像源：$repo_url"
+  fi
+
+  if [ -f "$sources_file" ] && grep -Fq "$repo_url" "$sources_file"; then
+    log "Termux main 镜像源已是：$repo_url"
+    return 0
+  fi
+
+  log "切换 Termux main 镜像源：$repo_url"
+  cp "$sources_file" "$sources_file.openhouseai.bak" 2>/dev/null || true
+  printf 'deb %s stable main\n' "$repo_url" > "$sources_file"
+}
+
+select_fastest_termux_main_repo() {
+  local candidates="
+https://packages-cf.termux.dev/apt/termux-main
+https://mirrors.tuna.tsinghua.edu.cn/termux/apt/termux-main
+https://mirrors.ustc.edu.cn/termux/apt/termux-main
+https://mirror.sunred.org/termux/termux-main
+"
+  local repo best_repo best_time repo_time probe_url metrics http_code
+  best_repo=""
+  best_time=""
+
+  for repo in $candidates; do
+    probe_url="$repo/dists/stable/InRelease"
+    metrics="$(curl -fsSL --connect-timeout 5 --max-time 12 -o /dev/null -w '%{time_total} %{http_code}' "$probe_url" 2>/dev/null || true)"
+    repo_time="${metrics%% *}"
+    http_code="${metrics##* }"
+    if [ "$http_code" = "200" ] && [ -n "$repo_time" ]; then
+      printf '[OpenHouseAI] Termux 镜像测速：%s %ss\n' "$repo" "$repo_time" >&2
+      if [ -z "$best_time" ] || awk "BEGIN{exit !($repo_time < $best_time)}"; then
+        best_time="$repo_time"
+        best_repo="$repo"
+      fi
+    else
+      printf '[OpenHouseAI] Termux 镜像不可用：%s\n' "$repo" >&2
+    fi
+  done
+
+  if [ -n "$best_repo" ]; then
+    printf '[OpenHouseAI] 选择最快 Termux main 镜像源：%s\n' "$best_repo" >&2
+    printf '%s\n' "$best_repo"
+  else
+    printf '[OpenHouseAI] Termux 镜像测速失败，回退到 packages-cf.termux.dev\n' >&2
+    printf '%s\n' "https://packages-cf.termux.dev/apt/termux-main"
+  fi
+}
+
 download_file() {
   local url="$1"
   local output="$2"
   local attempt
   for attempt in 1 2 3 4 5; do
     log "下载：$url（第 $attempt 次）"
-    if curl -fL --connect-timeout 20 --retry 3 --retry-delay 2 --retry-all-errors "$url" -o "$output"; then
+    if curl -fL \
+      --connect-timeout 10 \
+      --max-time 25 \
+      --speed-time 10 \
+      --speed-limit 1024 \
+      --retry 1 \
+      --retry-delay 2 \
+      --retry-all-errors \
+      "$url" -o "$output"; then
       return 0
     fi
     sleep 2
@@ -53,6 +120,7 @@ ensure_termux_curl() {
 
   command -v pkg >/dev/null 2>&1 || die "curl 不可用，且缺少 pkg，无法自动修复。"
 
+  configure_termux_main_repo
   log "正在更新 Termux 包索引并修复 curl 网络依赖。"
   run_logged pkg update -y || true
   run_logged pkg install -y curl libcurl libngtcp2 libnghttp2 openssl ca-certificates || true
@@ -60,7 +128,61 @@ ensure_termux_curl() {
   curl --version >/dev/null 2>&1 || die "curl 修复失败，请先执行：pkg upgrade -y && pkg install -y curl libcurl libngtcp2 openssl ca-certificates"
 }
 
+required_stage_scripts() {
+  case "${1:-full}" in
+    check)
+      printf '%s\n' 00-check-termux.sh
+      ;;
+    prepare)
+      printf '%s\n' 10-prepare-termux.sh
+      ;;
+    termux-packages)
+      printf '%s\n' 12-update-termux-packages.sh
+      ;;
+    ubuntu)
+      printf '%s\n' 20-install-ubuntu.sh
+      ;;
+    sync-docs)
+      printf '%s\n' 35-sync-docs.sh
+      ;;
+    ubuntu-packages)
+      printf '%s\n' 30-update-ubuntu-packages.sh
+      ;;
+    entry-ubuntu)
+      printf '%s\n' 70-configure-entry-ubuntu.sh
+      ;;
+    opencode)
+      printf '%s\n' 40-install-opencode.sh
+      ;;
+    codex)
+      printf '%s\n' 42-install-codex.sh
+      ;;
+    claude-code)
+      printf '%s\n' 44-install-claude-code.sh
+      ;;
+    full|""|menu)
+      printf '%s\n' \
+        00-check-termux.sh \
+        10-prepare-termux.sh \
+        12-update-termux-packages.sh \
+        20-install-ubuntu.sh \
+        35-sync-docs.sh \
+        30-update-ubuntu-packages.sh \
+        70-configure-entry-ubuntu.sh \
+        40-install-opencode.sh \
+        42-install-codex.sh \
+        44-install-claude-code.sh
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+}
+
 ensure_local_layout() {
+  local command="${1:-full}"
+  local name
+
   mkdir -p "$OPENHOUSEAI_DIR/scripts"
 
   if [ -d "$SCRIPT_DIR/scripts" ]; then
@@ -69,18 +191,8 @@ ensure_local_layout() {
 
   ensure_termux_curl
 
-  log "正在从 $OPENHOUSEAI_RAW_BASE 下载阶段脚本"
-  for name in \
-    00-check-termux.sh \
-    10-prepare-termux.sh \
-    12-update-termux-packages.sh \
-    20-install-ubuntu.sh \
-    35-sync-docs.sh \
-    30-update-ubuntu-packages.sh \
-    70-configure-entry-ubuntu.sh \
-    40-install-opencode.sh \
-    42-install-codex.sh \
-    44-install-claude-code.sh; do
+  log "正在从 $OPENHOUSEAI_RAW_BASE 下载当前动作需要的阶段脚本"
+  for name in $(required_stage_scripts "$command"); do
     download_file "$OPENHOUSEAI_RAW_BASE/scripts/$name" "$OPENHOUSEAI_DIR/scripts/$name"
     chmod +x "$OPENHOUSEAI_DIR/scripts/$name"
   done
@@ -150,7 +262,7 @@ EOF
 
 main() {
   ensure_supported_runtime
-  ensure_local_layout
+  ensure_local_layout "${1:-full}" || die "未知命令：${1:-}"
 
   case "${1:-}" in
     full)
