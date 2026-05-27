@@ -73,6 +73,7 @@ ensure_local_layout() {
   for name in \
     00-check-termux.sh \
     10-prepare-termux.sh \
+    12-update-termux-packages.sh \
     20-install-ubuntu.sh \
     35-sync-docs.sh \
     30-update-ubuntu-packages.sh \
@@ -118,6 +119,7 @@ run_stage() {
 run_full_install() {
   run_stage 00-check-termux.sh
   run_stage 10-prepare-termux.sh
+  run_stage 12-update-termux-packages.sh
   run_stage 20-install-ubuntu.sh
   run_stage 35-sync-docs.sh
   run_stage 30-update-ubuntu-packages.sh
@@ -133,15 +135,16 @@ OpenHouseAI Installer
 
 1. 完整安装 OpenCode、Codex、Claude Code
 2. 只检查 Termux 环境
-3. 只准备 Termux 路径和基础包
-4. 只安装 Ubuntu
-5. 只同步 OpenHouseAI 文档
-6. 只更新 Ubuntu 软件包
-7. 设置默认进入 Ubuntu
-8. 只安装 OpenCode
-9. 只安装 Codex
-10. 只安装 Claude Code
-11. 退出
+3. 只准备 Termux 路径、配置和文档
+4. 只安装 Termux 基础包
+5. 只安装 Ubuntu
+6. 只同步 OpenHouseAI 文档
+7. 只更新 Ubuntu 软件包
+8. 设置默认进入 Ubuntu
+9. 只安装 OpenCode
+10. 只安装 Codex
+11. 只安装 Claude Code
+12. 退出
 EOF
 }
 
@@ -160,6 +163,10 @@ main() {
       ;;
     prepare)
       run_stage 10-prepare-termux.sh
+      return
+      ;;
+    termux-packages)
+      run_stage 12-update-termux-packages.sh
       return
       ;;
     ubuntu)
@@ -199,21 +206,22 @@ main() {
 
   while true; do
     show_menu
-    printf '请选择 [1-11]: '
+    printf '请选择 [1-12]: '
     read -r choice
     case "$choice" in
       1) run_full_install ;;
       2) run_stage 00-check-termux.sh ;;
       3) run_stage 10-prepare-termux.sh ;;
-      4) run_stage 20-install-ubuntu.sh ;;
-      5) run_stage 35-sync-docs.sh ;;
-      6) run_stage 30-update-ubuntu-packages.sh ;;
-      7) run_stage 70-configure-entry-ubuntu.sh ;;
-      8) run_stage 40-install-opencode.sh ;;
-      9) run_stage 42-install-codex.sh ;;
-      10) run_stage 44-install-claude-code.sh ;;
-      11) exit 0 ;;
-      *) log "请输入 1 到 11。" ;;
+      4) run_stage 12-update-termux-packages.sh ;;
+      5) run_stage 20-install-ubuntu.sh ;;
+      6) run_stage 35-sync-docs.sh ;;
+      7) run_stage 30-update-ubuntu-packages.sh ;;
+      8) run_stage 70-configure-entry-ubuntu.sh ;;
+      9) run_stage 40-install-opencode.sh ;;
+      10) run_stage 42-install-codex.sh ;;
+      11) run_stage 44-install-claude-code.sh ;;
+      12) exit 0 ;;
+      *) log "请输入 1 到 12。" ;;
     esac
   done
 }

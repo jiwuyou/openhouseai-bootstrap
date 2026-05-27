@@ -134,45 +134,30 @@ else
   printf '\nallow-external-apps = true\n' >> "$TERMUX_PROPERTIES_FILE"
 fi
 
-log "正在安装 Termux 基础包。"
-run_logged pkg update -y
-run_logged pkg install -y proot-distro curl libcurl libngtcp2 libnghttp2 openssl ca-certificates git
-
-if ! curl --version >/dev/null 2>&1; then
-  log "curl 仍不可用，尝试完整升级 Termux 依赖。"
-  run_logged pkg upgrade -y
-  run_logged pkg install -y curl libcurl libngtcp2 libnghttp2 openssl ca-certificates
-fi
-
-if ! curl --version >/dev/null 2>&1; then
-  log "curl 修复失败，请手动执行：pkg upgrade -y && pkg install -y curl libcurl libngtcp2 libnghttp2 openssl ca-certificates"
-  exit 1
-fi
-
 cat > "$DOC_DIR/README.md" <<'EOF'
-# OpenHouseAI Docs
+# OpenHouseAI 文档
 
-This directory is visible to OpenCode. Put stable product notes here.
+本目录用于保存 OpenHouseAI 文档和本机笔记。
+
+正式说明会由“同步官方文档”阶段写入 `official/`：
+- `official/ENVIRONMENT.md`
+- `official/MODEL_API_SETUP.md`
 EOF
 
-cat > "$DOC_DIR/USER_GUIDE.md" <<'EOF'
-# User Guide
+cat > "$DOC_DIR/ENVIRONMENT.md" <<'EOF'
+# 运行环境说明
 
-1. Open the browser page served by OpenCode.
-2. Ask the agent to read AI_GUIDE.md before starting work.
-3. Keep your projects under ~/workspace.
+OpenHouseAI 运行在 Android Termux 中，并通过 `proot-distro` 提供 Ubuntu。OpenCode、Codex CLI 和 Claude Code 安装在 Ubuntu 内。
+
+工作区路径：`/data/data/com.termux/files/home/workspace`
 EOF
 
-cat > "$DOC_DIR/AI_GUIDE.md" <<'EOF'
-# AI Guide
+cat > "$DOC_DIR/MODEL_API_SETUP.md" <<'EOF'
+# Codex 和 Claude Code 登录/API 配置
 
-You are operating inside a local Termux + Ubuntu proot workspace.
+正式配置说明会由“同步官方文档”阶段写入 `official/MODEL_API_SETUP.md`。
 
-Rules:
-- Read README.md and this AI_GUIDE.md before making changes.
-- Treat ~/workspace as the writable area for user projects.
-- Keep generated artifacts organized and explain what was changed.
-- Do not write provider API keys into tracked files or shared docs.
+不要把 API key 写入 git 仓库、共享文档、APK 资源、日志或截图。
 EOF
 
 install_env_probe_cli
@@ -180,4 +165,4 @@ install_env_probe_cli
 log "文档路径：$DOC_DIR"
 log "工作区路径：$WORKSPACE_DIR"
 log "Termux 配置：$TERMUX_PROPERTIES_FILE"
-log "Termux 准备阶段完成。"
+log "Termux 路径、配置和文档准备完成。"
