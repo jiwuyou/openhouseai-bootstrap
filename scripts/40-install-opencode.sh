@@ -2,6 +2,7 @@
 set -euo pipefail
 
 OPENCODE_INSTALL_URL="${OPENCODE_INSTALL_URL:-https://opencode.ai/install}"
+OPENHOUSE_OPENCODE_VERSION="${OPENHOUSE_OPENCODE_VERSION:-0.0.55}"
 
 log() {
   printf '[OpenHouseAI] %s\n' "$*"
@@ -67,12 +68,21 @@ if ! is_current_ubuntu && { ! command -v proot-distro >/dev/null 2>&1 || ! proot
 fi
 
 log "正在 Ubuntu 内安装或检查 OpenCode。"
-run_ubuntu_logged env OPENCODE_INSTALL_URL="$OPENCODE_INSTALL_URL" bash -lc 'set -euo pipefail
+run_ubuntu_logged env OPENCODE_INSTALL_URL="$OPENCODE_INSTALL_URL" OPENHOUSE_OPENCODE_VERSION="$OPENHOUSE_OPENCODE_VERSION" bash -lc 'set -euo pipefail
 export PATH="$HOME/.opencode/bin:$HOME/.local/bin:$PATH"
+download_installer() {
+  local url="$1"
+  local output="$2"
+  echo "正在下载 OpenCode 安装脚本：$url"
+  curl -fL --connect-timeout 10 --max-time 90 --speed-time 20 --speed-limit 1024 --retry 1 --retry-delay 2 --retry-all-errors "$url" -o "$output"
+}
 if command -v opencode >/dev/null 2>&1 || test -x "$HOME/.opencode/bin/opencode"; then
   echo "OpenCode 已安装。"
 else
-  curl -fsSL "$OPENCODE_INSTALL_URL" | bash
+  tmp_installer="$(mktemp "${TMPDIR:-/tmp}/opencode-install.XXXXXX")"
+  trap '\''rm -f "$tmp_installer"'\'' EXIT
+  download_installer "$OPENCODE_INSTALL_URL" "$tmp_installer"
+  VERSION="$OPENHOUSE_OPENCODE_VERSION" bash "$tmp_installer"
 fi
 export PATH="$HOME/.opencode/bin:$HOME/.local/bin:$PATH"
 if command -v opencode >/dev/null 2>&1; then
