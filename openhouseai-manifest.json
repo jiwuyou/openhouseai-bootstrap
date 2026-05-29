@@ -29,7 +29,7 @@
     },
     {
       "title": "启动 OpenCode",
-      "description": "可选先申请 DeepSeek API Key，然后启动 4096 端口的 OpenCode 网页。",
+      "description": "申请并填写 DeepSeek API Key 后，可启动或重启 4096 端口的 OpenCode 网页。",
       "stages": ["start"]
     }
   ],
