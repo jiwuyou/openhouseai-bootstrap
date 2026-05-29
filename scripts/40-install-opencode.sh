@@ -2,7 +2,7 @@
 set -euo pipefail
 
 OPENCODE_INSTALL_URL="${OPENCODE_INSTALL_URL:-https://opencode.ai/install}"
-OPENHOUSE_OPENCODE_VERSION="${OPENHOUSE_OPENCODE_VERSION:-0.0.55}"
+OPENHOUSE_OPENCODE_VERSION="${OPENHOUSE_OPENCODE_VERSION:-}"
 
 log() {
   printf '[OpenHouseAI] %s\n' "$*"
@@ -82,7 +82,11 @@ else
   tmp_installer="$(mktemp "${TMPDIR:-/tmp}/opencode-install.XXXXXX")"
   trap '\''rm -f "$tmp_installer"'\'' EXIT
   download_installer "$OPENCODE_INSTALL_URL" "$tmp_installer"
-  VERSION="$OPENHOUSE_OPENCODE_VERSION" bash "$tmp_installer"
+  if [ -n "${OPENHOUSE_OPENCODE_VERSION:-}" ]; then
+    VERSION="$OPENHOUSE_OPENCODE_VERSION" bash "$tmp_installer"
+  else
+    bash "$tmp_installer"
+  fi
 fi
 export PATH="$HOME/.opencode/bin:$HOME/.local/bin:$PATH"
 if command -v opencode >/dev/null 2>&1; then
